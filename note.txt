@@ -1,0 +1,1 @@
+E:\Software\TicketLog\support.server\support.server>dotnet ef dbcontext scaffold "Server=PCNTT-HPDQ18461;Database=IT_SUPPORT;User Id=sa;Password=12345678aA@;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -o Models --force

@@ -1,0 +1,54 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\Software\\TicketLog\\support.server\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{8C6353BC-4558-43F7-B262-1BFCB8382519}|support.server\\support.server.csproj|e:\\software\\ticketlog\\support.server\\support.server\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8C6353BC-4558-43F7-B262-1BFCB8382519}|support.server\\support.server.csproj|solutionrelative:support.server\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8C6353BC-4558-43F7-B262-1BFCB8382519}|support.server\\support.server.csproj|e:\\software\\ticketlog\\support.server\\support.server\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{8C6353BC-4558-43F7-B262-1BFCB8382519}|support.server\\support.server.csproj|solutionrelative:support.server\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "E:\\Software\\TicketLog\\support.server\\support.server\\Program.cs",
+              "RelativeDocumentMoniker": "support.server\\Program.cs",
+              "ToolTip": "E:\\Software\\TicketLog\\support.server\\support.server\\Program.cs",
+              "RelativeToolTip": "support.server\\Program.cs",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAAADsAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-05T02:22:52.509Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "E:\\Software\\TicketLog\\support.server\\support.server\\appsettings.json",
+              "RelativeDocumentMoniker": "support.server\\appsettings.json",
+              "ToolTip": "E:\\Software\\TicketLog\\support.server\\support.server\\appsettings.json",
+              "RelativeToolTip": "support.server\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-11-04T14:34:56.485Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
