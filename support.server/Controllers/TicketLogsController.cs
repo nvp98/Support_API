@@ -22,6 +22,7 @@ namespace support.server.Controllers
         int pageSize = 10,
         byte? status = null,
         string department = null,
+        string type = null,
         string keyword = null,
         string usercode = null,
         DateTime? fromDate = null,
@@ -39,6 +40,10 @@ namespace support.server.Controllers
             // Filter theo department
             if (!string.IsNullOrEmpty(department))
                 query = query.Where(t => t.UserDepartment.Contains(department));
+
+            // Filter theo type
+            if (!string.IsNullOrEmpty(type))
+                query = query.Where(t => t.TicketType.Contains(type));
 
             // Filter theo usercode
             if (!string.IsNullOrEmpty(usercode))
@@ -63,7 +68,8 @@ namespace support.server.Controllers
 
             // Phân trang
             var items = await query
-                .OrderByDescending(t => t.CreatedAt)
+                .OrderBy(t => t.TicketStatus)                 // sắp xếp theo trạng thái trước
+                .ThenByDescending(t => t.CreatedAt)     // sau đó mới sắp xếp theo ngày tạo mới nhất
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
