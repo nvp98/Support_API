@@ -1,5 +1,0 @@
-{
-  "configProperties": {
-    "System.Net.SecurityProtocol": "Tls12,Tls13"
-  }
-}
