@@ -25,6 +25,7 @@ namespace support.server.Controllers
         string type = null,
         string keyword = null,
         string usercode = null,
+        string userAssigneeCode = null,
         DateTime? fromDate = null,
         DateTime? toDate = null)
         {
@@ -48,6 +49,10 @@ namespace support.server.Controllers
             // Filter theo usercode
             if (!string.IsNullOrEmpty(usercode))
                 query = query.Where(t => t.UserCode.Contains(usercode));
+
+            // Filter theo usercode
+            if (!string.IsNullOrEmpty(userAssigneeCode))
+                query = query.Where(t => t.UserAssigneeCode.Contains(userAssigneeCode));
 
             // Filter theo keyword (ticketCode, userName)
             if (!string.IsNullOrEmpty(keyword))
