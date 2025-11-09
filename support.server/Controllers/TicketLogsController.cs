@@ -218,6 +218,28 @@ namespace support.server.Controllers
             });
         }
 
+        [HttpPut("cancel/{id}")]
+        public async Task<IActionResult> UpdateCancel(int id, [FromBody] TicketLog model)
+        {
+            var ticket = await _context.TicketLogs.FindAsync(id);
+            if (ticket == null)
+                return NotFound("Không tìm thấy ticket.");
+            //if(ticket.UserAssigneeCode != model.UserAssigneeCode)
+            //    return NotFound("Ticket này chỉ được đóng với user đã tiếp nhận.");
+            // Cập nhật trạng thái và thông tin hoàn tất
+            ticket.TicketStatus = 3; // Hủy ticket
+            ticket.Note = model.Note;                 // ghi chú kết quả xử lý
+            ticket.ApprovedAt = DateTime.Now;         // thời điểm hoàn tất / phê duyệt
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Cập nhật hoàn tất ticket thành công.",
+                ticket
+            });
+        }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
