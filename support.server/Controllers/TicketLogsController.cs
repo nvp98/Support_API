@@ -250,5 +250,101 @@ namespace support.server.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
+
+        [HttpGet("export-excel")]
+        public async Task<IActionResult> ExportExcel(
+    byte? status = null,
+    string department = null,
+    string type = null,
+    string keyword = null,
+    string usercode = null,
+    string userAssigneeCode = null,
+    DateTime? fromDate = null,
+    DateTime? toDate = null)
+        {
+            // ==== 1. Lọc dữ liệu tương tự GetPagedList ====
+            var query = _context.TicketLogs.AsQueryable();
+
+            if (status.HasValue)
+                query = query.Where(t => t.TicketStatus == status.Value);
+
+            if (!string.IsNullOrEmpty(department))
+                query = query.Where(t => t.UserDepartment.Contains(department));
+
+            if (!string.IsNullOrEmpty(type))
+                query = query.Where(t => t.TicketType.Contains(type));
+
+            if (!string.IsNullOrEmpty(usercode))
+                query = query.Where(t => t.UserCode.Contains(usercode));
+
+            if (!string.IsNullOrEmpty(userAssigneeCode))
+                query = query.Where(t => t.UserAssigneeCode.Contains(userAssigneeCode));
+
+            if (!string.IsNullOrEmpty(keyword))
+                query = query.Where(t => t.TicketCode.Contains(keyword) || t.UserName.Contains(keyword));
+
+            if (fromDate.HasValue)
+                query = query.Where(t => t.CreatedAt >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(t => t.CreatedAt <= toDate.Value);
+
+            var items = await query.OrderByDescending(t => t.CreatedAt).ToListAsync();
+
+            // ==== 2. Đường dẫn đến template ====
+            var templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "templates", "TicketLog_Template.xlsx");
+            if (!System.IO.File.Exists(templatePath))
+                return NotFound("Không tìm thấy file mẫu Excel.");
+
+            // ==== 3. Tạo workbook từ file mẫu ====
+            using var workbook = new ClosedXML.Excel.XLWorkbook(templatePath);
+            var ws = workbook.Worksheet(1); // worksheet đầu tiên
+
+            // ==== 4. Ghi dữ liệu bắt đầu từ dòng 6 ====
+            int startRow = 3;
+            int currentRow = startRow;
+
+            foreach (var t in items)
+            {
+                ws.Cell(currentRow, 1).Value = currentRow -2;
+                ws.Cell(currentRow, 2).Value = t.TicketCode;
+                ws.Cell(currentRow, 3).Value = t.TicketTitle;
+                ws.Cell(currentRow, 4).Value = t.TicketType;
+                ws.Cell(currentRow, 5).Value = t.UserCode + "-"+t.UserName;
+                ws.Cell(currentRow, 6).Value = t.UserDepartment;
+                ws.Cell(currentRow, 7).Value = t.CreatedAt?.ToString("dd/MM/yyyy HH:mm");
+                ws.Cell(currentRow, 8).Value = t.UserAssigneeCode + "-" + t.UserAssigneeName;
+                ws.Cell(currentRow, 9).Value = t.UserAssigneeDepartment;
+                ws.Cell(currentRow, 10).Value = t.ReceivedAt?.ToString("dd/MM/yyyy HH:mm");
+                ws.Cell(currentRow, 11).Value = t.ApprovedAt?.ToString("dd/MM/yyyy HH:mm");
+                ws.Cell(currentRow, 12).Value = GetTicketStatusName(t.TicketStatus); 
+                ws.Cell(currentRow, 13).Value = t.Note;
+                currentRow++;
+            }
+
+            // ==== 5. Cập nhật thêm thông tin chung vào template (ví dụ tiêu đề) ====
+            //ws.Cell("B2").Value = $"Báo cáo Ticket Logs - Ngày xuất: {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+            // ==== 6. Trả file Excel về client ====
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            stream.Position = 0;
+
+            string fileName = $"TicketLogs_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+            return File(stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
+        private static string GetTicketStatusName(byte? status)
+        {
+            switch (status)
+            {
+                case 0: return "Chờ tiếp nhận";
+                case 1: return "Đã tiếp nhận";
+                case 2: return "Hoàn tất";
+                case 3: return "Hủy";
+                default: return "Không xác định";
+            }
+        }
     }
 }
