@@ -169,7 +169,12 @@ namespace support.server.Controllers
             if (ticket == null)
                 return NotFound("Không tìm thấy ticket.");
             // Cập nhật thông tin ticket
-            ticket.TicketCode = model.TicketType + model.TicketCode?.Substring('-');
+            var parts = model.TicketCode.Split('-');
+            if (parts.Length > 0)
+            {
+                parts[0] = model.TicketType;
+                ticket.TicketCode = string.Join("-", parts);
+            }
             ticket.TicketContent = model.TicketContent;
             ticket.TicketType = model.TicketType;
             ticket.TicketTitle = model.TicketTitle;
