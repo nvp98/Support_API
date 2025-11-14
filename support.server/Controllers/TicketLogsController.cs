@@ -194,14 +194,15 @@ namespace support.server.Controllers
         {
             var ticket = await _context.TicketLogs.FindAsync(id);
             if (ticket == null) return NotFound();
-
-            // Cập nhật các trường cần thiết
-            ticket.TicketStatus = 1; // tiếp nhận
-            ticket.UserAssigneeCode = model.UserAssigneeCode;
-            ticket.UserAssigneeName = model.UserAssigneeName;
-            ticket.UserAssigneeDepartment = model.UserAssigneeDepartment;
-            ticket.ReceivedAt = DateTime.Now;
-
+            if(ticket.TicketStatus == 0) // chỉ ở trạng thái chờ tiếp nhận mới được cập nhật
+            {
+                // Cập nhật các trường cần thiết
+                ticket.TicketStatus = 1; // tiếp nhận
+                ticket.UserAssigneeCode = model.UserAssigneeCode;
+                ticket.UserAssigneeName = model.UserAssigneeName;
+                ticket.UserAssigneeDepartment = model.UserAssigneeDepartment;
+                ticket.ReceivedAt = DateTime.Now;
+            }
             await _context.SaveChangesAsync();
             return Ok(ticket);
         }
@@ -218,6 +219,8 @@ namespace support.server.Controllers
             ticket.UserAssigneeName = null;
             ticket.UserAssigneeDepartment = null;
             ticket.ReceivedAt = null;
+            ticket.ApprovedAt = null;
+            ticket.Note = null;
 
             await _context.SaveChangesAsync();
             return Ok(ticket);
@@ -256,7 +259,7 @@ namespace support.server.Controllers
             // Cập nhật trạng thái và thông tin hoàn tất
             ticket.TicketStatus = 3; // Hủy ticket
             ticket.Note = model.Note;                 // ghi chú kết quả xử lý
-            ticket.ApprovedAt = DateTime.Now;         // thời điểm hoàn tất / phê duyệt
+            //ticket.ApprovedAt = DateTime.Now;         // thời điểm hoàn tất / phê duyệt
 
             await _context.SaveChangesAsync();
 
