@@ -162,6 +162,28 @@ namespace support.server.Controllers
             //return CreatedAtAction(nameof(GetById), new { id = ticket.TicketId }, ticket);
         }
 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTicket(int id, [FromBody] TicketLog model)
+        {
+            var ticket = await _context.TicketLogs.FindAsync(id);
+            if (ticket == null)
+                return NotFound("Không tìm thấy ticket.");
+            // Cập nhật thông tin ticket
+            ticket.TicketCode = model.TicketType + model.TicketCode?.Substring('-');
+            ticket.TicketContent = model.TicketContent;
+            ticket.TicketType = model.TicketType;
+            ticket.TicketTitle = model.TicketTitle;
+            ticket.UserContact = model.UserContact;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Cập nhật hoàn tất ticket thành công.",
+                ticket
+            });
+        }
+
         [HttpPut("received/{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] TicketLog model)
         {
