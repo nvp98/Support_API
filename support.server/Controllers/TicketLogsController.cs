@@ -259,7 +259,10 @@ namespace support.server.Controllers
             // Cập nhật trạng thái và thông tin hoàn tất
             ticket.TicketStatus = 3; // Hủy ticket
             ticket.Note = model.Note;                 // ghi chú kết quả xử lý
-            //ticket.ApprovedAt = DateTime.Now;         // thời điểm hoàn tất / phê duyệt
+            ticket.UserAssigneeCode = model.UserAssigneeCode;
+            ticket.UserAssigneeName = model.UserAssigneeName;
+            ticket.UserAssigneeDepartment = model.UserAssigneeDepartment;
+            ticket.ReceivedAt = DateTime.Now;         // thời điểm tiếp nhận / phê duyệt
 
             await _context.SaveChangesAsync();
 
