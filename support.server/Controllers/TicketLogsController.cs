@@ -194,7 +194,7 @@ namespace support.server.Controllers
         {
             var ticket = await _context.TicketLogs.FindAsync(id);
             if (ticket == null) return NotFound();
-            if(ticket.TicketStatus == 0) // chỉ ở trạng thái chờ tiếp nhận mới được cập nhật
+            if (ticket.TicketStatus == 0) // chỉ ở trạng thái chờ tiếp nhận mới được cập nhật
             {
                 // Cập nhật các trường cần thiết
                 ticket.TicketStatus = 1; // tiếp nhận
@@ -238,6 +238,26 @@ namespace support.server.Controllers
             ticket.TicketStatus = 2; // ví dụ: "Hoàn thành" hoặc mã 2
             ticket.Note = model.Note;                 // ghi chú kết quả xử lý
             ticket.ApprovedAt = DateTime.Now;         // thời điểm hoàn tất / phê duyệt
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Cập nhật hoàn tất ticket thành công.",
+                ticket
+            });
+        }
+
+        [HttpPut("note/{id}")]
+        public async Task<IActionResult> UpdateNote(int id, [FromBody] TicketLog model)
+        {
+            var ticket = await _context.TicketLogs.FindAsync(id);
+            if (ticket == null)
+                return NotFound("Không tìm thấy ticket.");
+            //if(ticket.UserAssigneeCode != model.UserAssigneeCode)
+            //    return NotFound("Ticket này chỉ được đóng với user đã tiếp nhận.");
+            // Cập nhật trạng thái và thông tin hoàn tất
+            ticket.Note = model.Note;                 // ghi chú kết quả xử lý
 
             await _context.SaveChangesAsync();
 
@@ -339,18 +359,18 @@ namespace support.server.Controllers
 
             foreach (var t in items)
             {
-                ws.Cell(currentRow, 1).Value = currentRow -2;
+                ws.Cell(currentRow, 1).Value = currentRow - 2;
                 ws.Cell(currentRow, 2).Value = t.TicketCode;
                 ws.Cell(currentRow, 3).Value = t.TicketTitle;
                 ws.Cell(currentRow, 4).Value = t.TicketType;
-                ws.Cell(currentRow, 5).Value = t.UserCode + "-"+t.UserName;
+                ws.Cell(currentRow, 5).Value = t.UserCode + "-" + t.UserName;
                 ws.Cell(currentRow, 6).Value = t.UserDepartment;
                 ws.Cell(currentRow, 7).Value = t.CreatedAt?.ToString("dd/MM/yyyy HH:mm");
                 ws.Cell(currentRow, 8).Value = t.UserAssigneeCode + "-" + t.UserAssigneeName;
                 ws.Cell(currentRow, 9).Value = t.UserAssigneeDepartment;
                 ws.Cell(currentRow, 10).Value = t.ReceivedAt?.ToString("dd/MM/yyyy HH:mm");
                 ws.Cell(currentRow, 11).Value = t.ApprovedAt?.ToString("dd/MM/yyyy HH:mm");
-                ws.Cell(currentRow, 12).Value = GetTicketStatusName(t.TicketStatus); 
+                ws.Cell(currentRow, 12).Value = GetTicketStatusName(t.TicketStatus);
                 ws.Cell(currentRow, 13).Value = t.Note;
                 currentRow++;
             }
