@@ -31,6 +31,9 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DbConnectionString")));
 
+builder.Services.AddDbContext<EPortalDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DbEPORTALConnectionString")));
+
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
