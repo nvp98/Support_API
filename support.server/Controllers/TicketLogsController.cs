@@ -148,6 +148,17 @@ namespace support.server.Controllers
 
                 ticket.FileAttachments = savedFileName; // lưu tên file vào DB
             }
+            // Chặn ảnh Base64
+            if (!string.IsNullOrWhiteSpace(ticket.TicketContent) &&
+                ticket.TicketContent.Contains("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message = "Ảnh chưa upload hoàn tất hoặc đang sử dụng Base64. Vui lòng chờ upload xong rồi lưu lại."
+                });
+            }
+
+
             ticket.TicketCode = newCode; // override client gửi lên
             ticket.TicketStatus = 0;
             ticket.CreatedAt = DateTime.Now;
@@ -294,6 +305,90 @@ namespace support.server.Controllers
         }
 
 
+        [HttpGet("Summary")]
+        public async Task<ActionResult<object>> GetSummary()
+        {
+            var today = DateTime.Today;
+            var fromDate = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
+            var toDate = today.AddDays(1);
+
+            var tickets = await _context.TicketLogs
+                .Where(t => t.CreatedAt >= fromDate && t.CreatedAt < toDate)
+                .Select(t => new
+                {
+                    t.TicketType,
+                    t.TicketStatus,
+                    t.UserAssigneeCode,
+                    t.UserAssigneeName
+                })
+                .ToListAsync();
+
+            var waitingTickets = tickets.Where(t => t.TicketStatus == 1).ToList();
+
+            var waitingByType = new Dictionary<string, int>
+            {
+                ["SOFT"] = waitingTickets.Count(t => t.TicketType == "SOFT"),
+                ["HARD"] = waitingTickets.Count(t => t.TicketType == "HARD"),
+                ["SAP"] = waitingTickets.Count(t => t.TicketType == "SAP"),
+            };
+
+            // Load staff config
+            var configPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "configs", "json_info_user.json");
+            var staffList = new List<(string Code, string Name, string Email, string Group, string? Avatar)>();
+            if (System.IO.File.Exists(configPath))
+            {
+                var json = await System.IO.File.ReadAllTextAsync(configPath);
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("supportStaff", out var arr))
+                {
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        staffList.Add((
+                            Code: item.GetProperty("maNhanVien").GetString() ?? "",
+                            Name: item.GetProperty("hoTen").GetString() ?? "",
+                            Email: item.GetProperty("email").GetString() ?? "",
+                            Group: item.GetProperty("maNhomHoTro").GetString() ?? "",
+                            Avatar: item.TryGetProperty("avatar", out var av) ? av.GetString() : null
+                        ));
+                    }
+                }
+            }
+
+            var staffMap = staffList.ToDictionary(s => s.Code);
+
+            // Init each group with all staff at count 0
+            var groups = new[] { "SOFT", "HARD", "SAP" };
+            var summaryByGroup = groups.ToDictionary(
+                g => g,
+                g => staffList
+                    .Where(s => s.Group == g)
+                    .Select(s => new StaffCount { Code = s.Code, Name = s.Name, Email = s.Email, Avatar = s.Avatar, Count = 0 })
+                    .ToList()
+            );
+
+            // Accumulate counts from waiting tickets
+            foreach (var t in waitingTickets.Where(t => !string.IsNullOrEmpty(t.UserAssigneeCode)))
+            {
+                var code = t.UserAssigneeCode!;
+                var groupKey = staffMap.TryGetValue(code, out var info) ? info.Group : "SOFT";
+                var list = summaryByGroup[groupKey];
+                var entry = list.FirstOrDefault(x => x.Code == code);
+                if (entry == null)
+                {
+                    entry = new StaffCount { Code = code, Name = t.UserAssigneeName ?? "Chưa rõ", Email = info.Email, Avatar = info.Avatar, Count = 0 };
+                    list.Add(entry);
+                }
+                entry.Count += 1;
+            }
+
+            var todaySupportSummary = groups.ToDictionary(
+                g => g,
+                g => summaryByGroup[g].OrderByDescending(x => x.Count).ToList()
+            );
+
+            return Ok(new { waitingByType, todaySupportSummary });
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -398,6 +493,15 @@ namespace support.server.Controllers
                 case 3: return "Hủy";
                 default: return "Không xác định";
             }
+        }
+
+        private class StaffCount
+        {
+            public string Code { get; set; } = "";
+            public string Name { get; set; } = "";
+            public string Email { get; set; } = "";
+            public string? Avatar { get; set; }
+            public int Count { get; set; }
         }
     }
 }
