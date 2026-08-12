@@ -34,7 +34,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddDbContext<EPortalDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DbEPORTALConnectionString")));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        opts.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddHttpClient();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -57,7 +62,13 @@ app.UseExceptionHandler(errorApp =>
         {
             var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogError(error.Error, "Unhandled exception at {Path}", context.Request.Path);
-            await context.Response.WriteAsJsonAsync(new { status = 500, message = "Lỗi máy chủ nội bộ. Vui lòng thử lại sau." });
+            var isDev = app.Environment.IsDevelopment();
+            await context.Response.WriteAsJsonAsync(new
+            {
+                status = 500,
+                message = isDev ? error.Error.Message : "Lỗi máy chủ nội bộ. Vui lòng thử lại sau.",
+                detail = isDev ? error.Error.ToString() : null
+            });
         }
     });
 });

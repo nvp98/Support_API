@@ -6,7 +6,7 @@
       "email": "tranngochoi@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -16,7 +16,7 @@
       "soDienThoai": "0374078778",
       "maNhomHoTro": "HARD",
       "avatar": "https://motcua.hoaphatdungquat.vn/Files/img/employee/HPDQ11167_01042026165722.png",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -25,9 +25,8 @@
       "email": "phuocnv1@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
-
     },
     {
       "maNhanVien": "HPDQ19013",
@@ -35,7 +34,7 @@
       "email": "quangnv2@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -44,9 +43,8 @@
       "email": "phuocnv@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "HARD",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
-
     },
     {
       "maNhanVien": "HPDQ21189",
@@ -54,7 +52,7 @@
       "email": "vonglnt@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SAP",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -63,7 +61,7 @@
       "email": "tamnt1@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "HARD",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -72,7 +70,7 @@
       "email": "hunghv@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "HARD",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -81,7 +79,7 @@
       "email": "nguyenchithang@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -90,7 +88,7 @@
       "email": "phamanhkha@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -99,7 +97,7 @@
       "email": "phanphudat@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -108,7 +106,7 @@
       "email": "truongthithuthao@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SAP",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -117,7 +115,7 @@
       "email": "tranthiphuong@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SAP",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     },
     {
@@ -126,7 +124,16 @@
       "email": "phamthanhhau@hoaphat.com.vn",
       "soDienThoai": "",
       "maNhomHoTro": "SOFT",
-      "chucVu": "KTV CNTT",
+      "chucVu": "Kỹ sư CNTT",
+      "phongBan": "P.CNTT&CĐS"
+    },
+    {
+      "maNhanVien": "HPDQ37457",
+      "hoTen": "Lê Hữu Đán",
+      "email": "lehuudan@hoaphat.com.vn",
+      "soDienThoai": "",
+      "maNhomHoTro": "SAP",
+      "chucVu": "Kỹ sư CNTT",
       "phongBan": "P.CNTT&CĐS"
     }
   ]
