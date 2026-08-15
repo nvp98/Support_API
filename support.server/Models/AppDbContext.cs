@@ -31,6 +31,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<ChangeRequest> ChangeRequests { get; set; }
     public virtual DbSet<ChangeRevision> ChangeRevisions { get; set; }
     public virtual DbSet<TimelineAdjustment> TimelineAdjustments { get; set; }
+    public virtual DbSet<ChangeRequestRole> ChangeRequestRoles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -100,6 +101,8 @@ public partial class AppDbContext : DbContext
         // SLC: ChangeRequest optional FK to Module and Project
         modelBuilder.Entity<ChangeRequest>(entity =>
         {
+            entity.Property(e => e.RowVersion).IsRowVersion();
+
             entity.HasOne(e => e.Module)
                 .WithMany(m => m.ChangeRequests)
                 .HasForeignKey(e => e.ModuleId)
@@ -109,6 +112,14 @@ public partial class AppDbContext : DbContext
                 .WithMany(p => p.ChangeRequests)
                 .HasForeignKey(e => e.ProjectId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ChangeRequestRole>(entity =>
+        {
+            entity.ToTable("slc_change_request_roles");
+            entity.HasIndex(e => new { e.UserCode, e.RoleCode })
+                .HasDatabaseName("UX_slc_change_request_roles_user_role")
+                .IsUnique();
         });
 
         // SLC: TimelineAdjustment optional FK to ChangeRequest
