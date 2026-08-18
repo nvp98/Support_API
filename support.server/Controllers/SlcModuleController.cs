@@ -74,10 +74,41 @@ public class SlcModuleController : ControllerBase
     {
         if (await _context.SlcModules.AnyAsync(m => m.Code == dto.Code))
             return BadRequest("Mã module đã tồn tại.");
+        var project = await _context.SlcProjects
+        .AsNoTracking()
+        .FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
 
+        if (project == null)
+            return BadRequest("Dự án không tồn tại.");
+
+        //Lấy toàn bộ mã module thuộc project
+        var moduleCodes = await _context.SlcModules
+            .Where(m => m.ProjectId == dto.ProjectId)
+            .Select(m => m.Code)
+            .ToListAsync();
+
+        var prefix = $"{project.Code}-";
+
+        //Tìm số module lớn nhất hiện tại
+        var maxNumber = moduleCodes
+            .Where(code => code.StartsWith(prefix))
+            .Select(code =>
+            {
+                var numberPart = code.Substring(prefix.Length);
+
+                return int.TryParse(numberPart, out var number)
+                    ? number
+                    : 0;
+            })
+            .DefaultIfEmpty(0)
+            .Max();
+
+        //Sinh mã module tiếp theo
+        var nextNumber = maxNumber + 1;
+        var moduleCode = $"{project.Code}-{nextNumber:D3}";
         var module = new SlcModule
         {
-            Code = dto.Code,
+            Code = moduleCode,
             Name = dto.Name,
             ProjectId = dto.ProjectId,
             Description = dto.Description,
