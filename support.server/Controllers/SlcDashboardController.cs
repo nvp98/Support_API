@@ -21,7 +21,7 @@ public class SlcDashboardController : ControllerBase
         var moduleCount = await _context.SlcModules.CountAsync();
         var taskCount = await _context.SlcTasks.CountAsync();
         var changeCount = await _context.ChangeRequests.CountAsync();
-        var pendingChanges = await _context.ChangeRequests.CountAsync(cr => cr.Status < 9 && cr.Status != 10);
+        var pendingChanges = await _context.ChangeRequests.CountAsync(cr => cr.Status <= 3);
 
         // Delayed projects: EndDate passed but status != Completed
         var delayedProjects = await _context.SlcProjects
@@ -163,8 +163,8 @@ public class SlcDashboardController : ControllerBase
             query = query.Where(cr => cr.CreatedAt.Year == targetYear);
 
         var totalChanges = await query.CountAsync();
-        var completedChanges = await query.CountAsync(cr => cr.Status == 9);
-        var rejectedChanges = await query.CountAsync(cr => cr.Status == 10);
+        var completedChanges = await query.CountAsync(cr => cr.Status == 4);
+        var rejectedChanges = await query.CountAsync(cr => cr.Status == 5);
         var avgImpactDays = totalChanges > 0
             ? await query.Where(cr => cr.ImpactTimeline).AverageAsync(cr => (double?)cr.ImpactDays) ?? 0
             : 0;
@@ -177,7 +177,7 @@ public class SlcDashboardController : ControllerBase
         var monthlyTrend = await _context.ChangeRequests
             .Where(cr => cr.CreatedAt.Year == targetYear)
             .GroupBy(cr => cr.CreatedAt.Month)
-            .Select(g => new { Month = g.Key, Count = g.Count(), Completed = g.Count(x => x.Status == 9) })
+            .Select(g => new { Month = g.Key, Count = g.Count(), Completed = g.Count(x => x.Status == 4) })
             .OrderBy(x => x.Month)
             .ToListAsync();
 

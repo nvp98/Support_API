@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using support.server.Models;
@@ -55,16 +56,15 @@ public class SlcImportController : ControllerBase
 
         // Sheet 4: ChangeRequests
         var ws4 = wb.AddWorksheet("ChangeRequests");
-        string[] h4 = ["title*", "project_code", "module_code", "priority(1-4)", "requestor_code", "requestor_name", "requestor_dept", "developer_code", "developer_name", "content*", "reason", "impact_timeline(0/1)", "impact_days", "impact_version"];
+        string[] h4 = ["title*", "project_code", "module_code", "priority(1-4)", "requestor_code", "requestor_name", "requestor_dept", "content*", "reason", "impact_timeline(0/1)", "impact_days", "impact_version"];
         SetHeader(ws4, h4, XLColor.LightSalmon);
         ws4.Cell(2, 1).Value = "Thêm tính năng xuất báo cáo";
         ws4.Cell(2, 2).Value = "PROJ-001"; ws4.Cell(2, 3).Value = "MOD-001";
         ws4.Cell(2, 4).Value = 2; ws4.Cell(2, 5).Value = "NV001";
         ws4.Cell(2, 6).Value = "Nguyễn Văn A"; ws4.Cell(2, 7).Value = "Phòng CNTT";
-        ws4.Cell(2, 8).Value = "DEV001"; ws4.Cell(2, 9).Value = "Trần Văn B";
-        ws4.Cell(2, 10).Value = "Mô tả nội dung thay đổi";
-        ws4.Cell(2, 11).Value = "Lý do thay đổi";
-        ws4.Cell(2, 12).Value = 0; ws4.Cell(2, 13).Value = 0; ws4.Cell(2, 14).Value = "";
+        ws4.Cell(2, 8).Value = "Mô tả nội dung thay đổi";
+        ws4.Cell(2, 9).Value = "Lý do thay đổi";
+        ws4.Cell(2, 10).Value = 0; ws4.Cell(2, 11).Value = 0; ws4.Cell(2, 12).Value = "";
         ws4.Columns().AdjustToContents();
 
         var ms = new MemoryStream();
@@ -294,16 +294,24 @@ public class SlcImportController : ControllerBase
         var wsCR = wb.Worksheets.FirstOrDefault(ws => ws.Name.Equals("ChangeRequests", StringComparison.OrdinalIgnoreCase));
         if (wsCR != null)
         {
+            await using var crTransaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             var rows = wsCR.RowsUsed().Skip(1).ToList();
             var projects = await _context.SlcProjects.ToDictionaryAsync(p => p.Code, StringComparer.OrdinalIgnoreCase);
             var modules = await _context.SlcModules.ToDictionaryAsync(m => m.Code, StringComparer.OrdinalIgnoreCase);
             var todayStr = now.ToString("yyMMdd");
-            var crCount = await _context.ChangeRequests.CountAsync(cr => cr.CreatedAt.Date == now.Date);
+            var existingCodes = await _context.ChangeRequests
+                .Where(cr => cr.Code.StartsWith($"REQ-{todayStr}-"))
+                .Select(cr => cr.Code)
+                .ToListAsync();
+            var crSequence = existingCodes
+                .Select(code => int.TryParse(code.Split('-').LastOrDefault(), out var number) ? number : 0)
+                .DefaultIfEmpty(0)
+                .Max();
 
             foreach (var row in rows)
             {
                 var title = GetStr(row, 1);
-                var content = GetStr(row, 10);
+                var content = GetStr(row, 8);
                 if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(content)) continue;
 
                 var projectCode = GetStr(row, 2);
@@ -312,18 +320,16 @@ public class SlcImportController : ControllerBase
                 var requestorCode = GetStr(row, 5);
                 var requestorName = GetStr(row, 6);
                 var requestorDept = GetStr(row, 7);
-                var developerCode = GetStr(row, 8);
-                var developerName = GetStr(row, 9);
-                var reason = GetStr(row, 11);
-                var impactTimeline = TryParseInt(GetStr(row, 12), 0) == 1;
-                var impactDays = TryParseInt(GetStr(row, 13), 0);
-                var impactVersion = GetStr(row, 14);
+                var reason = GetStr(row, 9);
+                var impactTimeline = TryParseInt(GetStr(row, 10), 0) == 1;
+                var impactDays = TryParseInt(GetStr(row, 11), 0);
+                var impactVersion = GetStr(row, 12);
 
                 projects.TryGetValue(projectCode, out var project);
                 modules.TryGetValue(moduleCode, out var module);
 
-                crCount++;
-                var code = $"REQ-{todayStr}-{crCount:D4}";
+                crSequence++;
+                var code = $"REQ-{todayStr}-{crSequence:D4}";
 
                 var cr = new ChangeRequest
                 {
@@ -333,18 +339,13 @@ public class SlcImportController : ControllerBase
                     RequestorCode = string.IsNullOrWhiteSpace(requestorCode) ? null : requestorCode,
                     RequestorName = string.IsNullOrWhiteSpace(requestorName) ? null : requestorName,
                     RequestorDept = string.IsNullOrWhiteSpace(requestorDept) ? null : requestorDept,
-                    DeveloperCode = string.IsNullOrWhiteSpace(developerCode) ? null : developerCode,
-                    DeveloperName = string.IsNullOrWhiteSpace(developerName) ? null : developerName,
                     ImpactTimeline = impactTimeline, ImpactDays = impactDays,
                     ImpactVersion = string.IsNullOrWhiteSpace(impactVersion) ? null : impactVersion,
                     Status = 0, CurrentRevision = 0, CreatedAt = now
                 };
-                _context.ChangeRequests.Add(cr);
-                await _context.SaveChangesAsync();
-
-                _context.ChangeRevisions.Add(new ChangeRevision
+                cr.Revisions.Add(new ChangeRevision
                 {
-                    ChangeRequestId = cr.Id, RevisionNumber = 0,
+                    RevisionNumber = 0,
                     Content = content,
                     Reason = string.IsNullOrWhiteSpace(reason) ? null : reason,
                     RequestorCode = string.IsNullOrWhiteSpace(requestorCode) ? null : requestorCode,
@@ -353,9 +354,12 @@ public class SlcImportController : ControllerBase
                     ImpactVersion = string.IsNullOrWhiteSpace(impactVersion) ? null : impactVersion,
                     Status = 0, CreatedAt = now
                 });
+                _context.ChangeRequests.Add(cr);
                 await _context.SaveChangesAsync();
                 result.ChangeRequestsAdded++;
             }
+
+            await crTransaction.CommitAsync();
         }
 
         result.Success = result.Errors.Count == 0;
