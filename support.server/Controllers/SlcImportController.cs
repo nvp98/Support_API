@@ -76,7 +76,7 @@ public class SlcImportController : ControllerBase
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file)
+    public async Task<IActionResult> Upload(IFormFile file)
     {
         if (file == null || file.Length == 0) return BadRequest("Không có file được gửi lên.");
         if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest("Chỉ hỗ trợ file .xlsx");
@@ -144,11 +144,17 @@ public class SlcImportController : ControllerBase
                 {
                     var p = new SlcProject
                     {
-                        Code = code, Name = name, SoftwareId = software.Id,
+                        Code = code,
+                        Name = name,
+                        SoftwareId = software.Id,
                         Description = string.IsNullOrWhiteSpace(desc) ? null : desc,
-                        StartDate = startDate, EndDate = endDate, GoLiveDate = goLiveDate,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        GoLiveDate = goLiveDate,
                         Version = string.IsNullOrWhiteSpace(version) ? null : version,
-                        Status = status, Weight = weight, CreatedAt = now
+                        Status = status,
+                        Weight = weight,
+                        CreatedAt = now
                     };
                     _context.SlcProjects.Add(p);
                     await _context.SaveChangesAsync();
@@ -207,13 +213,18 @@ public class SlcImportController : ControllerBase
                 {
                     var m = new SlcModule
                     {
-                        Code = code, Name = name, ProjectId = project.Id,
+                        Code = code,
+                        Name = name,
+                        ProjectId = project.Id,
                         Description = string.IsNullOrWhiteSpace(desc) ? null : desc,
                         AssigneeCode = string.IsNullOrWhiteSpace(assigneeCode) ? null : assigneeCode,
                         AssigneeName = string.IsNullOrWhiteSpace(assigneeName) ? null : assigneeName,
-                        StartDate = startDate, EndDate = endDate,
-                        PlannedProgress = planned, ActualProgress = actual,
-                        Weight = weight, Status = status,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        PlannedProgress = planned,
+                        ActualProgress = actual,
+                        Weight = weight,
+                        Status = status,
                         Version = string.IsNullOrWhiteSpace(version) ? null : version,
                         CreatedAt = now
                     };
@@ -273,13 +284,19 @@ public class SlcImportController : ControllerBase
                 {
                     var t = new SlcTask
                     {
-                        Code = code, Name = name, ModuleId = module.Id,
+                        Code = code,
+                        Name = name,
+                        ModuleId = module.Id,
                         Description = string.IsNullOrWhiteSpace(desc) ? null : desc,
                         AssigneeCode = string.IsNullOrWhiteSpace(assigneeCode) ? null : assigneeCode,
                         AssigneeName = string.IsNullOrWhiteSpace(assigneeName) ? null : assigneeName,
-                        StartDate = startDate, EndDate = endDate,
-                        Priority = priority, Status = status, Progress = progress,
-                        EstimatedHours = estimatedHours, CreatedAt = now
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        Priority = priority,
+                        Status = status,
+                        Progress = progress,
+                        EstimatedHours = estimatedHours,
+                        CreatedAt = now
                     };
                     _context.SlcTasks.Add(t);
                     await _context.SaveChangesAsync();
@@ -333,15 +350,22 @@ public class SlcImportController : ControllerBase
 
                 var cr = new ChangeRequest
                 {
-                    Code = code, Title = title, Content = content,
+                    Code = code,
+                    Title = title,
+                    Content = content,
                     Reason = string.IsNullOrWhiteSpace(reason) ? null : reason,
-                    Priority = priority, ProjectId = project?.Id, ModuleId = module?.Id,
+                    Priority = priority,
+                    ProjectId = project?.Id,
+                    ModuleId = module?.Id,
                     RequestorCode = string.IsNullOrWhiteSpace(requestorCode) ? null : requestorCode,
                     RequestorName = string.IsNullOrWhiteSpace(requestorName) ? null : requestorName,
                     RequestorDept = string.IsNullOrWhiteSpace(requestorDept) ? null : requestorDept,
-                    ImpactTimeline = impactTimeline, ImpactDays = impactDays,
+                    ImpactTimeline = impactTimeline,
+                    ImpactDays = impactDays,
                     ImpactVersion = string.IsNullOrWhiteSpace(impactVersion) ? null : impactVersion,
-                    Status = 0, CurrentRevision = 0, CreatedAt = now
+                    Status = 0,
+                    CurrentRevision = 0,
+                    CreatedAt = now
                 };
                 cr.Revisions.Add(new ChangeRevision
                 {
@@ -350,9 +374,11 @@ public class SlcImportController : ControllerBase
                     Reason = string.IsNullOrWhiteSpace(reason) ? null : reason,
                     RequestorCode = string.IsNullOrWhiteSpace(requestorCode) ? null : requestorCode,
                     RequestorName = string.IsNullOrWhiteSpace(requestorName) ? null : requestorName,
-                    ImpactTimeline = impactTimeline, ImpactDays = impactDays,
+                    ImpactTimeline = impactTimeline,
+                    ImpactDays = impactDays,
                     ImpactVersion = string.IsNullOrWhiteSpace(impactVersion) ? null : impactVersion,
-                    Status = 0, CreatedAt = now
+                    Status = 0,
+                    CreatedAt = now
                 });
                 _context.ChangeRequests.Add(cr);
                 await _context.SaveChangesAsync();
