@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using support.server.Models;
 using support.server.Models.SLC;
+using support.server.Services;
 
 namespace support.server.Controllers;
 
@@ -12,8 +13,15 @@ namespace support.server.Controllers;
 public class ChangeRequestController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ITeamsNotificationService _teamsNotificationService;
 
-    public ChangeRequestController(AppDbContext context) => _context = context;
+    public ChangeRequestController(
+        AppDbContext context,
+        ITeamsNotificationService teamsNotificationService)
+    {
+        _context = context;
+        _teamsNotificationService = teamsNotificationService;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -156,9 +164,12 @@ public class ChangeRequestController : ControllerBase
             ImpactDays = dto.ImpactDays,
             ImpactVersion = dto.ImpactVersion,
             ImpactModules = dto.ImpactModules,
-            Status = (byte)ChangeRequestStatus.Draft,
+            Status = (byte)ChangeRequestStatus.WaitingAcceptance,
             CurrentRevision = 0,
-            CreatedAt = now
+            CreatedAt = now,
+            SubmittedAt = now,
+            SubmittedByCode = dto.ActorCode,
+            SubmittedByName = dto.ActorName
         };
 
         item.Revisions.Add(new ChangeRevision
@@ -178,6 +189,8 @@ public class ChangeRequestController : ControllerBase
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
 
+        await _teamsNotificationService.SendChangeRequestCreatedAsync(item);
+
         var roles = await LoadRolesAsync(dto.ActorCode);
         item.AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
             item.Status, roles, dto.ActorCode, item.CreatedByCode);
@@ -192,10 +205,10 @@ public class ChangeRequestController : ControllerBase
 
         var item = await _context.ChangeRequests.FindAsync(id);
         if (item == null) return NotFound(new { message = "Không tìm thấy Change Request." });
-        if (item.Status != (byte)ChangeRequestStatus.Draft) return WorkflowConflict();
+        if (item.Status > (byte)ChangeRequestStatus.WaitingAcceptance) return WorkflowConflict();
         if (!await IsAdminOrCreatorAsync(dto.ActorCode, item.CreatedByCode))
             return StatusCode(StatusCodes.Status403Forbidden,
-                new { message = "Bạn chỉ được sửa Bản nháp do mình tạo." });
+                new { message = "Bạn chỉ được sửa Change Request do mình tạo trước khi phiếu được tiếp nhận." });
         if (string.IsNullOrWhiteSpace(dto.Title)) return BadRequest(new { message = "Tiêu đề là bắt buộc." });
         if (string.IsNullOrWhiteSpace(dto.Content)) return BadRequest(new { message = "Nội dung là bắt buộc." });
         if (dto.Content.Contains("data:image", StringComparison.OrdinalIgnoreCase)
@@ -230,23 +243,6 @@ public class ChangeRequestController : ControllerBase
     [HttpPut("{id:int}/status")]
     public IActionResult UpdateStatus(int id) => StatusCode(StatusCodes.Status410Gone,
         new { message = "API đổi trạng thái tự do đã bị vô hiệu hóa. Hãy sử dụng command workflow tương ứng." });
-
-    [HttpPost("{id:int}/submit")]
-    public async Task<IActionResult> Submit(int id, [FromBody] ActorCommandDto dto)
-    {
-        var roleError = await RequireRoleAsync(dto.ActorCode, ChangeRequestWorkflow.AdminRole);
-        if (roleError != null) return roleError;
-        var item = await _context.ChangeRequests.FindAsync(id);
-        if (item == null) return NotFound(new { message = "Không tìm thấy Change Request." });
-        if (item.Status != (byte)ChangeRequestStatus.Draft) return WorkflowConflict();
-
-        var now = DateTime.Now;
-        item.Status = (byte)ChangeRequestStatus.WaitingAcceptance;
-        item.SubmittedAt = now;
-        item.SubmittedByCode = dto.ActorCode;
-        item.SubmittedByName = dto.ActorName;
-        return await SaveCommandAsync(item);
-    }
 
     [HttpPost("{id:int}/accept")]
     public async Task<IActionResult> Accept(int id, [FromBody] AcceptChangeRequestDto dto)
@@ -394,10 +390,10 @@ public class ChangeRequestController : ControllerBase
 
         var item = await _context.ChangeRequests.Include(cr => cr.Revisions).FirstOrDefaultAsync(cr => cr.Id == id);
         if (item == null) return NotFound(new { message = "Không tìm thấy Change Request." });
-        if (item.Status != (byte)ChangeRequestStatus.Draft) return WorkflowConflict();
+        if (item.Status > (byte)ChangeRequestStatus.WaitingAcceptance) return WorkflowConflict();
         if (!await IsAdminOrCreatorAsync(dto.ActorCode, item.CreatedByCode))
             return StatusCode(StatusCodes.Status403Forbidden,
-                new { message = "Bạn chỉ được xóa Bản nháp do mình tạo." });
+                new { message = "Bạn chỉ được xóa Change Request do mình tạo trước khi phiếu được tiếp nhận." });
 
         _context.ChangeRevisions.RemoveRange(item.Revisions);
         _context.ChangeRequests.Remove(item);
@@ -473,6 +469,7 @@ public class ChangeRequestController : ControllerBase
 
     private ObjectResult WorkflowConflict() => Conflict(new
     {
+        status = StatusCodes.Status409Conflict,
         message = "Change Request đã được xử lý hoặc không còn ở trạng thái phù hợp. Vui lòng tải lại dữ liệu."
     });
 }

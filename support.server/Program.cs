@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using support.server.Controllers;
 using support.server.Models;
+using support.server.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +42,7 @@ builder.Services.AddControllers()
         opts.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<ITeamsNotificationService, TeamsNotificationService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
