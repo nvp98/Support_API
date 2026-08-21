@@ -3,17 +3,22 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using support.server.Models;
+using support.server.Services;
 
 namespace support.server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TicketLogsController : ControllerBase
-    {
-        private readonly AppDbContext _context;
-        public TicketLogsController(AppDbContext context)
+        public class TicketLogsController : ControllerBase
+        {
+            private readonly AppDbContext _context;
+        private readonly ITeamsNotificationService _teamsNotificationService;
+        public TicketLogsController(
+            AppDbContext context,
+            ITeamsNotificationService teamsNotificationService)
         {
             _context = context;
+            _teamsNotificationService = teamsNotificationService;
         }
 
         [HttpGet]
@@ -164,6 +169,7 @@ namespace support.server.Controllers
             ticket.CreatedAt = DateTime.Now;
             _context.TicketLogs.Add(ticket);
             await _context.SaveChangesAsync();
+            await _teamsNotificationService.SendTicketCreatedAsync(ticket);
             return Ok(new ApiResponse<TicketLog>
             {
                 status = 201,

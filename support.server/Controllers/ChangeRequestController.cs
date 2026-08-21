@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using support.server.Models;
 using support.server.Models.SLC;
+using support.server.Services;
 
 namespace support.server.Controllers;
 
@@ -12,8 +13,15 @@ namespace support.server.Controllers;
 public class ChangeRequestController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ITeamsNotificationService _teamsNotificationService;
 
-    public ChangeRequestController(AppDbContext context) => _context = context;
+    public ChangeRequestController(
+        AppDbContext context,
+        ITeamsNotificationService teamsNotificationService)
+    {
+        _context = context;
+        _teamsNotificationService = teamsNotificationService;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -180,6 +188,8 @@ public class ChangeRequestController : ControllerBase
         _context.ChangeRequests.Add(item);
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
+
+        await _teamsNotificationService.SendChangeRequestCreatedAsync(item);
 
         var roles = await LoadRolesAsync(dto.ActorCode);
         item.AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
