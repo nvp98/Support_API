@@ -38,7 +38,7 @@ public static class ChangeRequestWorkflow
         var isCreator = !string.IsNullOrWhiteSpace(createdByCode)
             && string.Equals(actorCode, createdByCode, StringComparison.OrdinalIgnoreCase);
 
-        if (status == (byte)ChangeRequestStatus.Draft && (isAdmin || isCreator))
+        if ((isAdmin || isCreator) && status <= (byte)ChangeRequestStatus.WaitingAcceptance)
         {
             actions.Add("EDIT");
             actions.Add("DELETE");
@@ -46,9 +46,6 @@ public static class ChangeRequestWorkflow
 
         if (isAdmin)
         {
-            if (status == (byte)ChangeRequestStatus.Draft)
-                actions.Add("SUBMIT");
-
             if (status <= (byte)ChangeRequestStatus.WaitingCompletion)
                 actions.Add("ADD_REVISION");
 
