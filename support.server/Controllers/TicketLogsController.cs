@@ -2,6 +2,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Text.RegularExpressions;
+using support.server.DTOs;
 using support.server.Models;
 using support.server.Services;
 
@@ -28,6 +31,7 @@ namespace support.server.Controllers
         byte? status = null,
         string department = null,
         string type = null,
+        string? subType = null,
         string keyword = null,
         string usercode = null,
         string userAssigneeCode = null,
@@ -50,6 +54,10 @@ namespace support.server.Controllers
             // Filter theo type
             if (!string.IsNullOrEmpty(type))
                 query = query.Where(t => t.TicketType.Contains(type));
+
+            // Filter theo hạng mục hỗ trợ cấp 2
+            if (!string.IsNullOrEmpty(subType))
+                query = query.Where(t => t.TicketSubType == subType);
 
             // Filter theo usercode
             if (!string.IsNullOrEmpty(usercode))
@@ -92,6 +100,7 @@ namespace support.server.Controllers
                 t.TicketCode,
                 t.TicketTitle,
                 t.TicketType,
+                t.TicketSubType,
                 t.TicketContent,
                 t.TicketStatus,
                 FileUrl = string.IsNullOrEmpty(t.FileAttachments) ? null : $"{baseUrl}/{t.FileAttachments}",
@@ -105,7 +114,11 @@ namespace support.server.Controllers
                 t.UserAssigneeDepartment,
                 t.ApprovedAt,
                 t.ReceivedAt,
-                t.Note
+                t.Note,
+                t.CompletedNote,
+                t.ProcessingMinutes,
+                t.ErrorClassification,
+                t.HandlerClassification
             });
 
             return Ok(new
@@ -131,6 +144,12 @@ namespace support.server.Controllers
         [RequestSizeLimit(20_000_000)]
         public async Task<ActionResult<TicketLog>> Create(TicketLog ticket)
         {
+            var classificationError = TicketClassificationCatalog.Validate(
+                ticket.TicketType,
+                ticket.TicketSubType);
+            if (classificationError != null)
+                return BadRequest(new { message = classificationError });
+
             // 🔹 Sinh mã ticket tự động
             var today = DateTime.Now.ToString("yyMMdd");
             var countToday = await _context.TicketLogs.CountAsync(t => t.CreatedAt.Value.Date == DateTime.Today);
@@ -185,6 +204,13 @@ namespace support.server.Controllers
             var ticket = await _context.TicketLogs.FindAsync(id);
             if (ticket == null)
                 return NotFound("Không tìm thấy ticket.");
+
+            var classificationError = TicketClassificationCatalog.Validate(
+                model.TicketType,
+                model.TicketSubType);
+            if (classificationError != null)
+                return BadRequest(new { message = classificationError });
+
             // Cập nhật thông tin ticket
             var parts = model.TicketCode.Split('-');
             if (parts.Length > 0)
@@ -194,6 +220,7 @@ namespace support.server.Controllers
             }
             ticket.TicketContent = model.TicketContent;
             ticket.TicketType = model.TicketType;
+            ticket.TicketSubType = model.TicketSubType;
             ticket.TicketTitle = model.TicketTitle;
             ticket.UserContact = model.UserContact;
 
@@ -238,31 +265,41 @@ namespace support.server.Controllers
             ticket.ReceivedAt = null;
             ticket.ApprovedAt = null;
             ticket.Note = null;
+            ticket.CompletedNote = null;
+            ticket.ProcessingMinutes = null;
+            ticket.ErrorClassification = null;
+            ticket.HandlerClassification = null;
 
             await _context.SaveChangesAsync();
             return Ok(ticket);
         }
 
         [HttpPut("completed/{id}")]
-        public async Task<IActionResult> UpdateCompleted(int id, [FromBody] TicketLog model)
+        public async Task<IActionResult> UpdateCompleted(int id, [FromBody] CompleteTicketRequest model)
         {
             var ticket = await _context.TicketLogs.FindAsync(id);
             if (ticket == null)
                 return NotFound("Không tìm thấy ticket.");
-            //if(ticket.UserAssigneeCode != model.UserAssigneeCode)
-            //    return NotFound("Ticket này chỉ được đóng với user đã tiếp nhận.");
-            // Cập nhật trạng thái và thông tin hoàn tất
-            ticket.TicketStatus = 2; // ví dụ: "Hoàn thành" hoặc mã 2
-            ticket.Note = model.Note;                 // ghi chú kết quả xử lý
-            ticket.ApprovedAt = DateTime.Now;         // thời điểm hoàn tất / phê duyệt
+
+            if (ticket.TicketStatus != 1)
+                return Conflict(new { message = "Chỉ ticket đang xử lý mới có thể hoàn thành." });
+
+            var completedNote = model.CompletedNote.Trim();
+            if (!HasMeaningfulCompletedNote(completedNote))
+                return BadRequest(new { message = "Ghi chú hoàn thành phải có nội dung hoặc hình ảnh hợp lệ." });
+
+            if (completedNote.Length > 100_000)
+                return BadRequest(new { message = "Ghi chú hoàn thành không được vượt quá 100.000 ký tự." });
+
+            ticket.TicketStatus = 2;
+            ticket.CompletedNote = completedNote;
+            ticket.ProcessingMinutes = model.ProcessingMinutes;
+            ticket.ErrorClassification = model.ErrorClassification;
+            ticket.HandlerClassification = model.HandlerClassification;
+            ticket.ApprovedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                message = "Cập nhật hoàn tất ticket thành công.",
-                ticket
-            });
+            return Ok(ticket);
         }
 
         [HttpPut("note/{id}")]
@@ -410,6 +447,7 @@ namespace support.server.Controllers
     byte? status = null,
     string department = null,
     string type = null,
+    string? subType = null,
     string keyword = null,
     string usercode = null,
     string userAssigneeCode = null,
@@ -427,6 +465,9 @@ namespace support.server.Controllers
 
             if (!string.IsNullOrEmpty(type))
                 query = query.Where(t => t.TicketType.Contains(type));
+
+            if (!string.IsNullOrEmpty(subType))
+                query = query.Where(t => t.TicketSubType == subType);
 
             if (!string.IsNullOrEmpty(usercode))
                 query = query.Where(t => t.UserCode.Contains(usercode));
@@ -458,6 +499,12 @@ namespace support.server.Controllers
             int startRow = 3;
             int currentRow = startRow;
 
+            ws.Cell(startRow - 1, 14).Value = "Thời gian xử lý (phút)";
+            ws.Cell(startRow - 1, 15).Value = "Phân loại lỗi";
+            ws.Cell(startRow - 1, 16).Value = "Phân loại xử lý";
+            ws.Cell(startRow - 1, 17).Value = "Ghi chú hoàn thành";
+            ws.Cell(startRow - 1, 18).Value = "Hạng mục hỗ trợ";
+
             foreach (var t in items)
             {
                 ws.Cell(currentRow, 1).Value = currentRow - 2;
@@ -473,6 +520,11 @@ namespace support.server.Controllers
                 ws.Cell(currentRow, 11).Value = t.ApprovedAt?.ToString("dd/MM/yyyy HH:mm");
                 ws.Cell(currentRow, 12).Value = GetTicketStatusName(t.TicketStatus);
                 ws.Cell(currentRow, 13).Value = t.Note;
+                ws.Cell(currentRow, 14).Value = t.ProcessingMinutes;
+                ws.Cell(currentRow, 15).Value = GetErrorClassificationName(t.ErrorClassification);
+                ws.Cell(currentRow, 16).Value = GetHandlerClassificationName(t.HandlerClassification);
+                ws.Cell(currentRow, 17).Value = GetCompletedNoteForExport(t.CompletedNote);
+                ws.Cell(currentRow, 18).Value = TicketClassificationCatalog.GetSubTypeLabel(t.TicketSubType);
                 currentRow++;
             }
 
@@ -499,6 +551,45 @@ namespace support.server.Controllers
                 case 3: return "Hủy";
                 default: return "Không xác định";
             }
+        }
+
+        private static bool HasMeaningfulCompletedNote(string html)
+        {
+            var text = WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", " "));
+            return !string.IsNullOrWhiteSpace(text) ||
+                   Regex.IsMatch(html, "<img\\b", RegexOptions.IgnoreCase);
+        }
+
+        private static string GetErrorClassificationName(string? classification) => classification switch
+        {
+            "OLD" => "Lỗi cũ (đã từng xảy ra)",
+            "NEW" => "Lỗi mới (lần đầu phát sinh)",
+            _ => string.Empty
+        };
+
+        private static string GetHandlerClassificationName(string? classification) => classification switch
+        {
+            "IT" => "IT xử lý",
+            "NT" => "NT xử lý",
+            _ => string.Empty
+        };
+
+        private static string GetCompletedNoteForExport(string? html)
+        {
+            if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+            var text = WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", " "));
+            text = Regex.Replace(text, "\\s+", " ").Trim();
+
+            var imageUrls = Regex.Matches(
+                    html,
+                    "<img[^>]+src=[\\\"'](?<url>[^\\\"']+)[\\\"']",
+                    RegexOptions.IgnoreCase)
+                .Select(match => match.Groups["url"].Value)
+                .Distinct();
+            var images = string.Join("; ", imageUrls);
+
+            return string.IsNullOrEmpty(images) ? text : $"{text} Hình ảnh: {images}".Trim();
         }
 
         private class StaffCount

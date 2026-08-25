@@ -163,6 +163,15 @@ public sealed class TeamsNotificationService : ITeamsNotificationService
             new { title = "Thời gian tạo", value = ticket.CreatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—" }
         };
 
+        if (!string.IsNullOrWhiteSpace(ticket.TicketSubType))
+        {
+            facts.Insert(2, new
+            {
+                title = "Hạng mục hỗ trợ",
+                value = TicketClassificationCatalog.GetSubTypeLabel(ticket.TicketSubType)
+            });
+        }
+
         var body = new List<object>
         {
             new

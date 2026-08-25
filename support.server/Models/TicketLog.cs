@@ -18,6 +18,8 @@ public partial class TicketLog
 
     public string? TicketType { get; set; }
 
+    public string? TicketSubType { get; set; }
+
     public string? TicketContent { get; set; }
 
     public byte? TicketStatus { get; set; }
@@ -46,4 +48,12 @@ public partial class TicketLog
     public DateTime? ApprovedAt { get; set; }
 
     public string? Note { get; set; }
+
+    public string? CompletedNote { get; set; }
+
+    public int? ProcessingMinutes { get; set; }
+
+    public string? ErrorClassification { get; set; }
+
+    public string? HandlerClassification { get; set; }
 }
