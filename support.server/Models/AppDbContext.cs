@@ -68,6 +68,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.TicketStatus).HasColumnName("ticket_status");
             entity.Property(e => e.TicketTitle).HasMaxLength(500).HasColumnName("ticket_title");
             entity.Property(e => e.TicketType).HasMaxLength(20).HasColumnName("ticket_type");
+            entity.Property(e => e.TicketSubType).HasMaxLength(50).HasColumnName("ticket_sub_type");
             entity.Property(e => e.UserAssigneeCode).HasMaxLength(20).HasColumnName("user_assignee_code");
             entity.Property(e => e.UserAssigneeDepartment).HasMaxLength(100).IsFixedLength().HasColumnName("user_assignee_department");
             entity.Property(e => e.UserAssigneeName).HasMaxLength(50).HasColumnName("user_assignee_name");

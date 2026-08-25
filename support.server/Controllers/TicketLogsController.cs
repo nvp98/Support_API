@@ -31,6 +31,7 @@ namespace support.server.Controllers
         byte? status = null,
         string department = null,
         string type = null,
+        string? subType = null,
         string keyword = null,
         string usercode = null,
         string userAssigneeCode = null,
@@ -53,6 +54,10 @@ namespace support.server.Controllers
             // Filter theo type
             if (!string.IsNullOrEmpty(type))
                 query = query.Where(t => t.TicketType.Contains(type));
+
+            // Filter theo hạng mục hỗ trợ cấp 2
+            if (!string.IsNullOrEmpty(subType))
+                query = query.Where(t => t.TicketSubType == subType);
 
             // Filter theo usercode
             if (!string.IsNullOrEmpty(usercode))
@@ -95,6 +100,7 @@ namespace support.server.Controllers
                 t.TicketCode,
                 t.TicketTitle,
                 t.TicketType,
+                t.TicketSubType,
                 t.TicketContent,
                 t.TicketStatus,
                 FileUrl = string.IsNullOrEmpty(t.FileAttachments) ? null : $"{baseUrl}/{t.FileAttachments}",
@@ -138,6 +144,12 @@ namespace support.server.Controllers
         [RequestSizeLimit(20_000_000)]
         public async Task<ActionResult<TicketLog>> Create(TicketLog ticket)
         {
+            var classificationError = TicketClassificationCatalog.Validate(
+                ticket.TicketType,
+                ticket.TicketSubType);
+            if (classificationError != null)
+                return BadRequest(new { message = classificationError });
+
             // 🔹 Sinh mã ticket tự động
             var today = DateTime.Now.ToString("yyMMdd");
             var countToday = await _context.TicketLogs.CountAsync(t => t.CreatedAt.Value.Date == DateTime.Today);
@@ -192,6 +204,13 @@ namespace support.server.Controllers
             var ticket = await _context.TicketLogs.FindAsync(id);
             if (ticket == null)
                 return NotFound("Không tìm thấy ticket.");
+
+            var classificationError = TicketClassificationCatalog.Validate(
+                model.TicketType,
+                model.TicketSubType);
+            if (classificationError != null)
+                return BadRequest(new { message = classificationError });
+
             // Cập nhật thông tin ticket
             var parts = model.TicketCode.Split('-');
             if (parts.Length > 0)
@@ -201,6 +220,7 @@ namespace support.server.Controllers
             }
             ticket.TicketContent = model.TicketContent;
             ticket.TicketType = model.TicketType;
+            ticket.TicketSubType = model.TicketSubType;
             ticket.TicketTitle = model.TicketTitle;
             ticket.UserContact = model.UserContact;
 
@@ -427,6 +447,7 @@ namespace support.server.Controllers
     byte? status = null,
     string department = null,
     string type = null,
+    string? subType = null,
     string keyword = null,
     string usercode = null,
     string userAssigneeCode = null,
@@ -444,6 +465,9 @@ namespace support.server.Controllers
 
             if (!string.IsNullOrEmpty(type))
                 query = query.Where(t => t.TicketType.Contains(type));
+
+            if (!string.IsNullOrEmpty(subType))
+                query = query.Where(t => t.TicketSubType == subType);
 
             if (!string.IsNullOrEmpty(usercode))
                 query = query.Where(t => t.UserCode.Contains(usercode));
@@ -479,6 +503,7 @@ namespace support.server.Controllers
             ws.Cell(startRow - 1, 15).Value = "Phân loại lỗi";
             ws.Cell(startRow - 1, 16).Value = "Phân loại xử lý";
             ws.Cell(startRow - 1, 17).Value = "Ghi chú hoàn thành";
+            ws.Cell(startRow - 1, 18).Value = "Hạng mục hỗ trợ";
 
             foreach (var t in items)
             {
@@ -499,6 +524,7 @@ namespace support.server.Controllers
                 ws.Cell(currentRow, 15).Value = GetErrorClassificationName(t.ErrorClassification);
                 ws.Cell(currentRow, 16).Value = GetHandlerClassificationName(t.HandlerClassification);
                 ws.Cell(currentRow, 17).Value = GetCompletedNoteForExport(t.CompletedNote);
+                ws.Cell(currentRow, 18).Value = TicketClassificationCatalog.GetSubTypeLabel(t.TicketSubType);
                 currentRow++;
             }
 

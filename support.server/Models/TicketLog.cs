@@ -18,6 +18,8 @@ public partial class TicketLog
 
     public string? TicketType { get; set; }
 
+    public string? TicketSubType { get; set; }
+
     public string? TicketContent { get; set; }
 
     public byte? TicketStatus { get; set; }
