@@ -189,7 +189,14 @@ public class ChangeRequestController : ControllerBase
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        await _teamsNotificationService.SendChangeRequestCreatedAsync(item);
+        var projectCode = item.ProjectId.HasValue
+            ? await _context.SlcProjects
+                .AsNoTracking()
+                .Where(project => project.Id == item.ProjectId.Value)
+                .Select(project => project.Code)
+                .FirstOrDefaultAsync()
+            : null;
+        await _teamsNotificationService.SendChangeRequestCreatedAsync(item, projectCode);
 
         var roles = await LoadRolesAsync(dto.ActorCode);
         item.AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
