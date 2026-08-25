@@ -6,7 +6,7 @@ namespace support.server.Services;
 
 public interface ITeamsNotificationService
 {
-    Task<bool> SendChangeRequestCreatedAsync(ChangeRequest changeRequest, string? projectCode);
+    Task<bool> SendChangeRequestCreatedAsync(ChangeRequest changeRequest, string? softwareCode);
     Task<bool> SendTicketCreatedAsync(TicketLog ticket);
 }
 
@@ -29,20 +29,20 @@ public sealed class TeamsNotificationService : ITeamsNotificationService
 
     public async Task<bool> SendChangeRequestCreatedAsync(
         ChangeRequest changeRequest,
-        string? projectCode)
+        string? softwareCode)
     {
-        var projectRoute = string.IsNullOrWhiteSpace(projectCode)
+        var softwareRoute = string.IsNullOrWhiteSpace(softwareCode)
             ? null
             : _configuration
-                .GetSection("Teams:ChangeRequestProjectRoutes")
+                .GetSection("Teams:ChangeRequestSoftwareRoutes")
                 .GetChildren()
                 .FirstOrDefault(route => string.Equals(
-                    route["ProjectCode"],
-                    projectCode,
+                    route["SoftwareCode"],
+                    softwareCode,
                     StringComparison.OrdinalIgnoreCase));
-        var workflowUrl = projectRoute is null
+        var workflowUrl = softwareRoute is null
             ? _configuration["Teams:ChangeRequestWorkflowUrl"]
-            : projectRoute["WorkflowUrl"];
+            : softwareRoute["WorkflowUrl"];
 
         if (!Uri.TryCreate(workflowUrl, UriKind.Absolute, out var workflowUri)
             || workflowUri.Scheme != Uri.UriSchemeHttps)
