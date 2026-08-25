@@ -59,6 +59,10 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.FileAttachments).HasMaxLength(500).HasColumnName("file_attachments");
             entity.Property(e => e.Note).HasMaxLength(150).HasColumnName("note");
+            entity.Property(e => e.CompletedNote).HasColumnName("completedNote");
+            entity.Property(e => e.ProcessingMinutes).HasColumnName("processingMinutes");
+            entity.Property(e => e.ErrorClassification).HasMaxLength(10).HasColumnName("errorClassification");
+            entity.Property(e => e.HandlerClassification).HasMaxLength(10).HasColumnName("handlerClassification");
             entity.Property(e => e.TicketCode).HasMaxLength(20).HasColumnName("ticket_code");
             entity.Property(e => e.TicketContent).HasMaxLength(1000).HasColumnName("ticket_content");
             entity.Property(e => e.TicketStatus).HasColumnName("ticket_status");
