@@ -284,15 +284,15 @@ namespace support.server.Controllers
             if (ticket.TicketStatus != 1)
                 return Conflict(new { message = "Chỉ ticket đang xử lý mới có thể hoàn thành." });
 
-            var completedNote = model.CompletedNote.Trim();
-            if (!HasMeaningfulCompletedNote(completedNote))
-                return BadRequest(new { message = "Ghi chú hoàn thành phải có nội dung hoặc hình ảnh hợp lệ." });
-
-            if (completedNote.Length > 100_000)
+            var completedNote = model.CompletedNote?.Trim();
+            if (completedNote?.Length > 100_000)
                 return BadRequest(new { message = "Ghi chú hoàn thành không được vượt quá 100.000 ký tự." });
 
             ticket.TicketStatus = 2;
-            ticket.CompletedNote = completedNote;
+            ticket.CompletedNote = !string.IsNullOrEmpty(completedNote)
+                && HasMeaningfulCompletedNote(completedNote)
+                    ? completedNote
+                    : null;
             ticket.ProcessingMinutes = model.ProcessingMinutes;
             ticket.ErrorClassification = model.ErrorClassification;
             ticket.HandlerClassification = model.HandlerClassification;
