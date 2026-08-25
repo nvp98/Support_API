@@ -6,7 +6,7 @@ namespace support.server.Services;
 
 public interface ITeamsNotificationService
 {
-    Task<bool> SendChangeRequestCreatedAsync(ChangeRequest changeRequest);
+    Task<bool> SendChangeRequestCreatedAsync(ChangeRequest changeRequest, string? projectCode);
     Task<bool> SendTicketCreatedAsync(TicketLog ticket);
 }
 
@@ -27,9 +27,23 @@ public sealed class TeamsNotificationService : ITeamsNotificationService
         _logger = logger;
     }
 
-    public async Task<bool> SendChangeRequestCreatedAsync(ChangeRequest changeRequest)
+    public async Task<bool> SendChangeRequestCreatedAsync(
+        ChangeRequest changeRequest,
+        string? projectCode)
     {
-        var workflowUrl = _configuration["Teams:ChangeRequestWorkflowUrl"];
+        var projectRoute = string.IsNullOrWhiteSpace(projectCode)
+            ? null
+            : _configuration
+                .GetSection("Teams:ChangeRequestProjectRoutes")
+                .GetChildren()
+                .FirstOrDefault(route => string.Equals(
+                    route["ProjectCode"],
+                    projectCode,
+                    StringComparison.OrdinalIgnoreCase));
+        var workflowUrl = projectRoute is null
+            ? _configuration["Teams:ChangeRequestWorkflowUrl"]
+            : projectRoute["WorkflowUrl"];
+
         if (!Uri.TryCreate(workflowUrl, UriKind.Absolute, out var workflowUri)
             || workflowUri.Scheme != Uri.UriSchemeHttps)
         {
@@ -41,49 +55,7 @@ public sealed class TeamsNotificationService : ITeamsNotificationService
 
         var pageUrl = _configuration["Teams:ChangeRequestPageUrl"];
         var card = BuildChangeRequestCard(changeRequest, pageUrl);
-
-        try
-        {
-            using var timeout = new CancellationTokenSource(RequestTimeout);
-            using var response = await _httpClient.PostAsJsonAsync(workflowUri, card, timeout.Token);
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation(
-                    "Đã gửi thông báo Teams cho Change Request {ChangeRequestCode}.",
-                    changeRequest.Code);
-                return true;
-            }
-
-            _logger.LogWarning(
-                "Gửi thông báo Teams cho Change Request {ChangeRequestCode} thất bại với HTTP {StatusCode}.",
-                changeRequest.Code,
-                (int)response.StatusCode);
-            return false;
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogWarning(
-                "Gửi thông báo Teams cho Change Request {ChangeRequestCode} quá thời gian {TimeoutSeconds} giây.",
-                changeRequest.Code,
-                RequestTimeout.TotalSeconds);
-            return false;
-        }
-        catch (HttpRequestException exception)
-        {
-            _logger.LogWarning(
-                exception,
-                "Không thể kết nối Teams Workflow khi gửi Change Request {ChangeRequestCode}.",
-                changeRequest.Code);
-            return false;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(
-                exception,
-                "Lỗi không xác định khi gửi thông báo Teams cho Change Request {ChangeRequestCode}.",
-                changeRequest.Code);
-            return false;
-        }
+        return await SendAsync(workflowUri, card, "Change Request", changeRequest.Code);
     }
 
     public async Task<bool> SendTicketCreatedAsync(TicketLog ticket)
