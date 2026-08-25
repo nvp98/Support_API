@@ -29,7 +29,7 @@ public static class TicketClassificationCatalog
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["EOFFICE"] = "EOffice",
-            ["MS365"] = "MS 365",
+            ["MS365"] = "MS 365 (teams, mail,...)",
             ["BK_SOFTWARE"] = "Phần mềm BK",
             ["ACCESS_CONTROL"] = "AccessControl",
             ["WINDOWS_INSTALL"] = "Cài Win",
