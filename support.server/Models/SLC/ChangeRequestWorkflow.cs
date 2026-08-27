@@ -48,13 +48,16 @@ public static class ChangeRequestWorkflow
         {
             if (status <= (byte)ChangeRequestStatus.WaitingCompletion)
                 actions.Add("ADD_REVISION");
+        }
+
+        if (roles.Contains(DeveloperRole))
+        {
+            if (status == (byte)ChangeRequestStatus.WaitingAcceptance)
+                actions.Add("ACCEPT");
 
             if (status == (byte)ChangeRequestStatus.WaitingCompletion)
                 actions.Add("COMPLETE");
         }
-
-        if (roles.Contains(DeveloperRole) && status == (byte)ChangeRequestStatus.WaitingAcceptance)
-            actions.Add("ACCEPT");
 
         if (roles.Contains(ApproverRole) && status == (byte)ChangeRequestStatus.WaitingApproval)
         {

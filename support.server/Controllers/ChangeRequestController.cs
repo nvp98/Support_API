@@ -31,6 +31,7 @@ public class ChangeRequestController : ControllerBase
         [FromQuery] byte? status,
         [FromQuery] byte? priority,
         [FromQuery] string? requestorCode,
+        [FromQuery] bool myRequest,
         [FromQuery] string? keyword,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
@@ -56,6 +57,18 @@ public class ChangeRequestController : ControllerBase
         if (fromDate.HasValue) query = query.Where(cr => cr.CreatedAt >= fromDate.Value);
         if (toDate.HasValue) query = query.Where(cr => cr.CreatedAt <= toDate.Value);
 
+        if (myRequest)
+        {
+            query = query.Where(cr => cr.CreatedByCode == rolesResult.ActorCode
+                || cr.RequestorCode == rolesResult.ActorCode
+                || cr.DeveloperCode == rolesResult.ActorCode);
+        }
+        else if (!rolesResult.Roles.Contains(ChangeRequestWorkflow.AdminRole))
+        {
+            query = query.Where(cr => cr.CreatedByCode == rolesResult.ActorCode
+                || cr.RequestorCode == rolesResult.ActorCode);
+        }
+
         var total = await query.CountAsync();
         var entities = await query
             .OrderByDescending(cr => cr.CreatedAt)
@@ -64,6 +77,7 @@ public class ChangeRequestController : ControllerBase
             .Select(cr => new
             {
                 cr.Id, cr.Code, cr.Title, cr.Priority, cr.Status,
+                cr.FileAttachments,
                 cr.ModuleId, ModuleName = cr.Module != null ? cr.Module.Name : null,
                 cr.ProjectId, ProjectName = cr.Project != null ? cr.Project.Name : null,
                 cr.RequestorCode, cr.RequestorName, cr.RequestorDept,
@@ -81,6 +95,7 @@ public class ChangeRequestController : ControllerBase
         var items = entities.Select(cr => new
         {
             cr.Id, cr.Code, cr.Title, cr.Priority, cr.Status,
+            cr.FileAttachments,
             StatusName = ChangeRequestWorkflow.GetStatusName(cr.Status),
             cr.ModuleId, cr.ModuleName, cr.ProjectId, cr.ProjectName,
             cr.RequestorCode, cr.RequestorName, cr.RequestorDept,
@@ -112,6 +127,12 @@ public class ChangeRequestController : ControllerBase
             .AsNoTracking()
             .FirstOrDefaultAsync(cr => cr.Id == id);
         if (item == null) return NotFound(new { message = "Không tìm thấy Change Request." });
+        if (!rolesResult.Roles.Contains(ChangeRequestWorkflow.AdminRole)
+            && !string.Equals(item.CreatedByCode, rolesResult.ActorCode, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(item.RequestorCode, rolesResult.ActorCode, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(item.DeveloperCode, rolesResult.ActorCode, StringComparison.OrdinalIgnoreCase))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Bạn không có quyền xem Change Request này." });
 
         item.AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
             item.Status, rolesResult.Roles, rolesResult.ActorCode, item.CreatedByCode);
@@ -119,7 +140,8 @@ public class ChangeRequestController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ChangeRequestMutationDto dto)
+    [RequestSizeLimit(20_000_000)]
+    public async Task<IActionResult> Create([FromForm] ChangeRequestMutationDto dto)
     {
         var actorError = ValidateActor(dto);
         if (actorError != null) return actorError;
@@ -133,6 +155,7 @@ public class ChangeRequestController : ControllerBase
                 || dto.BeforeChangeContent.Contains("blob:", StringComparison.OrdinalIgnoreCase)))
             return BadRequest(new { message = "Nội dung trước thay đổi chứa ảnh chưa được upload. Vui lòng chờ ảnh upload hoàn tất rồi lưu lại." });
         if (dto.Priority is < 1 or > 4) return BadRequest(new { message = "Độ ưu tiên phải nằm trong khoảng 1 đến 4." });
+        var savedFileName = await SaveAttachmentAsync(dto.UploadedFile);
 
         var now = DateTime.Now;
         var todayStr = now.ToString("yyMMdd");
@@ -152,6 +175,7 @@ public class ChangeRequestController : ControllerBase
             Content = dto.Content,
             BeforeChangeContent = dto.BeforeChangeContent,
             Reason = dto.Reason,
+            FileAttachments = savedFileName,
             Priority = dto.Priority,
             ModuleId = dto.ModuleId,
             ProjectId = dto.ProjectId,
@@ -207,7 +231,8 @@ public class ChangeRequestController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] ChangeRequestMutationDto dto)
+    [RequestSizeLimit(20_000_000)]
+    public async Task<IActionResult> Update(int id, [FromForm] ChangeRequestMutationDto dto)
     {
         var actorError = ValidateActor(dto);
         if (actorError != null) return actorError;
@@ -228,11 +253,14 @@ public class ChangeRequestController : ControllerBase
                 || dto.BeforeChangeContent.Contains("blob:", StringComparison.OrdinalIgnoreCase)))
             return BadRequest(new { message = "Nội dung trước thay đổi chứa ảnh chưa được upload. Vui lòng chờ ảnh upload hoàn tất rồi lưu lại." });
         if (dto.Priority is < 1 or > 4) return BadRequest(new { message = "Độ ưu tiên phải nằm trong khoảng 1 đến 4." });
-
         item.Title = dto.Title.Trim();
         item.Content = dto.Content;
         item.BeforeChangeContent = dto.BeforeChangeContent;
         item.Reason = dto.Reason;
+        if (dto.UploadedFile != null)
+        {
+            item.FileAttachments = await SaveAttachmentAsync(dto.UploadedFile);
+        }
         item.Priority = dto.Priority;
         item.ModuleId = dto.ModuleId;
         item.ProjectId = dto.ProjectId;
@@ -315,7 +343,7 @@ public class ChangeRequestController : ControllerBase
     [HttpPost("{id:int}/complete")]
     public async Task<IActionResult> Complete(int id, [FromBody] ActorCommandDto dto)
     {
-        var roleError = await RequireRoleAsync(dto.ActorCode, ChangeRequestWorkflow.AdminRole);
+        var roleError = await RequireRoleAsync(dto.ActorCode, ChangeRequestWorkflow.DeveloperRole);
         if (roleError != null) return roleError;
 
         var item = await _context.ChangeRequests.FirstOrDefaultAsync(cr => cr.Id == id);
@@ -476,6 +504,20 @@ public class ChangeRequestController : ControllerBase
         return null;
     }
 
+    private static async Task<string?> SaveAttachmentAsync(IFormFile? file)
+    {
+        if (file == null) return null;
+
+        var savedFileName = $"{Guid.NewGuid()}_{file.FileName}";
+        var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        Directory.CreateDirectory(uploadPath);
+
+        var filePath = Path.Combine(uploadPath, savedFileName);
+        await using var stream = new FileStream(filePath, FileMode.CreateNew);
+        await file.CopyToAsync(stream);
+        return savedFileName;
+    }
+
     private ObjectResult WorkflowConflict() => Conflict(new
     {
         status = StatusCodes.Status409Conflict,
@@ -505,6 +547,7 @@ public class RejectChangeRequestDto : ActorCommandDto
 
 public class ChangeRequestMutationDto : ActorCommandDto
 {
+    public IFormFile? UploadedFile { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Content { get; set; }
     public string? BeforeChangeContent { get; set; }

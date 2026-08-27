@@ -28,6 +28,10 @@ public class ChangeRequest
     [MaxLength(1000)]
     public string? Reason { get; set; }
 
+    [Column("file_attachments")]
+    [MaxLength(500)]
+    public string? FileAttachments { get; set; }
+
     // 1=Low, 2=Medium, 3=High, 4=Critical
     [Column("priority")]
     public byte Priority { get; set; } = 2;
