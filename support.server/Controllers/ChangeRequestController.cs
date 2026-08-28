@@ -84,6 +84,7 @@ public class ChangeRequestController : ControllerBase
                 cr.CreatedByCode, cr.CreatedByName,
                 cr.ApproverCode, cr.ApproverName,
                 cr.DeveloperCode, cr.DeveloperName, cr.DeveloperAcceptedAt, cr.ExpectedCompletionDate,
+                cr.IsDeployed, cr.IsChecked,
                 cr.SubmittedAt, cr.SubmittedByCode, cr.SubmittedByName,
                 cr.ImpactTimeline, cr.ImpactDays, cr.ImpactVersion,
                 cr.CurrentRevision, cr.CreatedAt, cr.ApprovedAt, cr.CompletedAt,
@@ -102,13 +103,15 @@ public class ChangeRequestController : ControllerBase
             cr.CreatedByCode, cr.CreatedByName,
             cr.ApproverCode, cr.ApproverName, cr.DeveloperCode, cr.DeveloperName,
             cr.DeveloperAcceptedAt, cr.ExpectedCompletionDate,
+            cr.IsDeployed, cr.IsChecked,
             cr.SubmittedAt, cr.SubmittedByCode, cr.SubmittedByName,
             cr.ImpactTimeline, cr.ImpactDays, cr.ImpactVersion,
             cr.CurrentRevision, cr.CreatedAt, cr.ApprovedAt, cr.CompletedAt,
             cr.CompletedByCode, cr.CompletedByName, cr.RejectedAt, cr.RejectedReason,
             cr.RevisionCount,
             AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
-                cr.Status, rolesResult.Roles, rolesResult.ActorCode, cr.CreatedByCode)
+                cr.Status, rolesResult.Roles, rolesResult.ActorCode, cr.CreatedByCode,
+                cr.RequestorCode, cr.DeveloperCode)
         });
 
         return Ok(new { total, page, pageSize, items });
@@ -135,7 +138,8 @@ public class ChangeRequestController : ControllerBase
                 new { message = "Bạn không có quyền xem Change Request này." });
 
         item.AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
-            item.Status, rolesResult.Roles, rolesResult.ActorCode, item.CreatedByCode);
+            item.Status, rolesResult.Roles, rolesResult.ActorCode, item.CreatedByCode,
+            item.RequestorCode, item.DeveloperCode);
         return Ok(item);
     }
 
@@ -226,7 +230,8 @@ public class ChangeRequestController : ControllerBase
 
         var roles = await LoadRolesAsync(dto.ActorCode);
         item.AllowedActions = ChangeRequestWorkflow.GetAllowedActions(
-            item.Status, roles, dto.ActorCode, item.CreatedByCode);
+            item.Status, roles, dto.ActorCode, item.CreatedByCode,
+            item.RequestorCode, item.DeveloperCode);
         return Ok(item);
     }
 
@@ -419,6 +424,47 @@ public class ChangeRequestController : ControllerBase
         return Ok(revision);
     }
 
+    [HttpPut("{id:int}/mark-deployed")]
+    public async Task<IActionResult> MarkAsDeployed(
+        int id,
+        [FromBody] CompletionMarkerDto dto)
+    {
+        var roleError = await RequireRoleAsync(dto.ActorCode, ChangeRequestWorkflow.DeveloperRole);
+        if (roleError != null) return roleError;
+
+        var item = await _context.ChangeRequests.FindAsync(id);
+        if (item == null) return NotFound(new { message = "Không tìm thấy Change Request." });
+        if (!CanChangeCompletionMarker(item.Status)) return CompletionMarkerConflict();
+        if (!string.Equals(item.DeveloperCode, dto.ActorCode, StringComparison.OrdinalIgnoreCase))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Chỉ người phụ trách đã tiếp nhận CR mới được đánh dấu đã triển khai." });
+
+        item.IsDeployed = dto.IsMarked;
+        return await SaveCommandAsync(item);
+    }
+
+    [HttpPut("{id:int}/mark-checked")]
+    public async Task<IActionResult> MarkAsChecked(
+        int id,
+        [FromBody] CompletionMarkerDto dto)
+    {
+        var actorError = ValidateActor(dto);
+        if (actorError != null) return actorError;
+
+        var item = await _context.ChangeRequests.FindAsync(id);
+        if (item == null) return NotFound(new { message = "Không tìm thấy Change Request." });
+        if (!CanChangeCompletionMarker(item.Status)) return CompletionMarkerConflict();
+
+        var isCreator = string.Equals(item.CreatedByCode, dto.ActorCode, StringComparison.OrdinalIgnoreCase);
+        var isRequestor = string.Equals(item.RequestorCode, dto.ActorCode, StringComparison.OrdinalIgnoreCase);
+        if (!isCreator && !isRequestor)
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Chỉ người tạo hoặc người yêu cầu mới được đánh dấu đã kiểm tra." });
+
+        item.IsChecked = dto.IsMarked;
+        return await SaveCommandAsync(item);
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, [FromBody] ActorCommandDto dto)
     {
@@ -504,6 +550,15 @@ public class ChangeRequestController : ControllerBase
         return null;
     }
 
+    private static bool CanChangeCompletionMarker(byte status) =>
+        status != (byte)ChangeRequestStatus.WaitingAcceptance;
+
+    private ObjectResult CompletionMarkerConflict() => Conflict(new
+    {
+        status = StatusCodes.Status409Conflict,
+        message = "Không thể đánh dấu khi CR đang ở trạng thái chờ tiếp nhận."
+    });
+
     private static async Task<string?> SaveAttachmentAsync(IFormFile? file)
     {
         if (file == null) return null;
@@ -562,6 +617,11 @@ public class ChangeRequestMutationDto : ActorCommandDto
     public int ImpactDays { get; set; }
     public string? ImpactVersion { get; set; }
     public string? ImpactModules { get; set; }
+}
+
+public class CompletionMarkerDto : ActorCommandDto
+{
+    public bool IsMarked { get; set; }
 }
 
 public class AddChangeRevisionDto : ActorCommandDto
