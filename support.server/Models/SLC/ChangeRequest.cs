@@ -70,6 +70,12 @@ public class ChangeRequest
     [MaxLength(100)]
     public string? DeveloperName { get; set; }
 
+    [Column("is_deployed")]
+    public bool IsDeployed { get; set; }
+
+    [Column("is_checked")]
+    public bool IsChecked { get; set; }
+
     // 0=Bản nháp, 1=Chờ tiếp nhận, 2=Chờ xác nhận,
     // 3=Chờ hoàn thành, 4=Hoàn thành, 5=Từ chối
     [Column("status")]

@@ -31,7 +31,9 @@ public static class ChangeRequestWorkflow
         byte status,
         IReadOnlySet<string> roles,
         string actorCode,
-        string? createdByCode)
+        string? createdByCode,
+        string? requestorCode,
+        string? developerCode)
     {
         var actions = new List<string>();
         var isAdmin = roles.Contains(AdminRole);
@@ -64,6 +66,17 @@ public static class ChangeRequestWorkflow
             actions.Add("APPROVE");
             actions.Add("REJECT");
         }
+
+        var canMarkCompletion = status != (byte)ChangeRequestStatus.WaitingAcceptance;
+        if (canMarkCompletion
+            && roles.Contains(DeveloperRole)
+            && string.Equals(actorCode, developerCode, StringComparison.OrdinalIgnoreCase))
+            actions.Add("MARK_DEVELOPER_COMPLETED");
+
+        var isRequestor = !string.IsNullOrWhiteSpace(requestorCode)
+            && string.Equals(actorCode, requestorCode, StringComparison.OrdinalIgnoreCase);
+        if (canMarkCompletion && (isCreator || isRequestor))
+            actions.Add("MARK_USER_COMPLETED");
 
         return actions;
     }
